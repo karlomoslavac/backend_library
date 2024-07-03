@@ -1,20 +1,7 @@
 const Text = require('../models/Text.js');
-const { createWorker } = require('tesseract.js');
+const Tesseract = require('tesseract.js');
 const fs = require('fs');
 const path = require('path');
-
-let worker;
-
-const initializeWorker = async () => {
-  worker = createWorker();
-  await worker.load();
-  await worker.loadLanguage('eng');
-  await worker.initialize('eng');
-};
-
-initializeWorker().catch(err => {
-  console.error('Greška prilikom inicijalizacije radnika:', err);
-});
 
 const addText = async (req, res) => {
   try {
@@ -45,22 +32,31 @@ const deleteText = async (req, res) => {
 const runOCR = async (req, res) => {
   const textId = req.params.id;
   try {
+    console.log('Pokrećem OCR za tekst:', textId);
     const text = await Text.findById(textId);
     if (!text) {
       return res.status(404).json({ message: 'Tekst nije pronađen.' });
     }
 
-    if (!worker) {
-      return res.status(500).json({ message: 'Radnik za OCR nije inicijaliziran.' });
+    const imagePath = path.join(__dirname, '..', 'uploads', text.image);
+    if (!fs.existsSync(imagePath)) {
+      console.error('Slika nije pronađena:', imagePath);
+      return res.status(404).json({ message: 'Slika nije pronađena.' });
     }
 
-    const imagePath = path.join(__dirname, '..', 'uploads', text.image);
-    const { data: { text: ocrText } } = await worker.recognize(imagePath);
-    fs.unlinkSync(imagePath); // Obriši sliku nakon OCR procesa
-    res.status(200).json({ text: ocrText });
+    Tesseract.recognize(imagePath, 'eng')
+      .then(({ data: { text: ocrText } }) => {
+        console.log('OCR uspješno dovršen');
+        fs.unlinkSync(imagePath); // Delete the image file after OCR processing
+        res.status(200).json({ text: ocrText });
+      })
+      .catch(error => {
+        console.error('Greška prilikom OCR procesa:', error);
+        res.status(500).json({ message: 'Greška prilikom OCR procesa', error: error.message });
+      });
   } catch (error) {
     console.error('Greška prilikom OCR procesa:', error);
-    res.status(500).json({ message: 'Greška prilikom OCR procesa', error });
+    res.status(500).json({ message: 'Greška prilikom OCR procesa', error: error.message });
   }
 };
 

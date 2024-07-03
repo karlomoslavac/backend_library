@@ -19,13 +19,13 @@ app.use(express.json());
 
 // CORS Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',  // Adjust this based on your frontend URL
+  origin: 'http://localhost:3000',  
   credentials: true,
 }));
 
 // Session Middleware
 app.use(session({
-  secret: process.env.SESSION_SECRET, // Change this to a secure secret key
+  secret: process.env.SESSION_SECRET, 
   resave: false,
   saveUninitialized: false,
 }));
